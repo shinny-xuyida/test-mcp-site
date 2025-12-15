@@ -177,46 +177,107 @@ hist_data = np.histogram(df['spread'], bins=20)`,
                     }
                 })
             },
-            'backtest': {
-                id: 'backtest',
-                title: '股指隔夜策略',
-                icon: 'fa-chart-line',
-                color: 'emerald',
-                desc: 'IF 收盘买入/开盘卖出 策略回测',
-                query: "获取IF（沪深300）股指期货过去5年的日线数据。假设策略为：每天收盘价买入，次日开盘价卖出。请计算累计收益率曲线。",
+            'technical': {
+                id: 'technical',
+                title: '均线支撑验证',
+                icon: 'fa-crosshairs',
+                color: 'amber',
+                desc: '统计螺纹钢回踩 MA20 不破的成功率',
+                query: "分析螺纹钢主力合约，统计回踩 MA20 且未跌破的次数及后续涨幅。",
                 steps: [
-                    { status: 'done', text: '语义解析: IF/沪深300 -> KQ.m@CFFEX.IF' },
-                    { status: 'done', text: 'MCP 调用: tq_get_kline("KQ.m@CFFEX.IF", duration=86400, length=1200)' },
-                    { status: 'done', text: 'Python 执行: 向量化回测计算...' }
+                    { status: 'done', text: '语义解析: 螺纹钢 -> KQ.m@SHFE.rb' },
+                    { status: 'done', text: 'MCP 调用: tq_get_kline("KQ.m@SHFE.rb", duration=86400, length=300)' },
+                    { status: 'done', text: 'Python 执行: MA20 计算与信号筛选...' }
                 ],
-                summary: `**回测结果：IF 隔夜持仓策略**
-- **总收益率**: +18.5% (年化 3.7%)
-- **夏普比率**: 0.45
-- **最大回撤**: -5.2%
-- **结论**: 隔夜持仓具有正期望值，但波动较大。A股市场存在显著的“隔夜风险溢价”。`,
-                pythonCode: `# 1. Vectorized Backtest
-df['ret_overnight'] = df['open'].shift(-1) / df['close'] - 1
-df['cum_ret'] = (1 + df['ret_overnight']).cumprod()
+                summary: `**技术指标回测报告**
+- **有效支撑次数**: 8 次
+- **平均后续涨幅**: +1.8% (3日内)
+- **胜率**: 75%
+- **结论**: 螺纹钢在多头趋势中，MA20 是一条具有高统计学意义的支撑线，适合作为低吸点位。`,
+                pythonCode: `# 1. Calculate MA
+df['ma20'] = df['close'].rolling(20).mean()
 
-# 2. Max Drawdown
-roll_max = df['cum_ret'].cummax()
-df['drawdown'] = df['cum_ret'] / roll_max - 1`,
+# 2. Signal: Low <= MA20 <= Close (Touch & Rebound)
+cond = (df['low'] <= df['ma20']) & (df['close'] > df['ma20'])
+signals = df[cond]
+
+# 3. Forward Returns
+signals['fwd_ret'] = df['close'].shift(-3) / df['close'] - 1`,
                 chartConfig: (ctx) => ({
                     type: 'line',
                     data: {
-                        labels: Array.from({length: 20}, (_, i) => `202${i%5}-Q${i%4+1}`),
+                        labels: ['T-40', 'T-35', 'T-30', 'T-25', 'T-20', 'T-15', 'T-10', 'T-5', 'Now'],
+                        datasets: [
+                            {
+                                label: '收盘价',
+                                data: [3600, 3650, 3620, 3680, 3750, 3720, 3800, 3850, 3820],
+                                borderColor: '#94a3b8',
+                                borderWidth: 1,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'MA20',
+                                data: [3580, 3600, 3610, 3640, 3680, 3710, 3750, 3780, 3800],
+                                borderColor: '#f59e0b',
+                                borderWidth: 2,
+                                pointRadius: 0
+                            },
+                            {
+                                label: '有效支撑信号',
+                                type: 'scatter',
+                                data: [
+                                    {x: 'T-30', y: 3620},
+                                    {x: 'T-15', y: 3720}
+                                ],
+                                backgroundColor: '#ef4444',
+                                pointRadius: 6,
+                                pointHoverRadius: 8
+                            }
+                        ]
+                    },
+                    options: {
+                        plugins: { title: { display: true, text: 'RB 主力日线图 (MA20 策略)' } }
+                    }
+                })
+            },
+            'seasonality': {
+                id: 'seasonality',
+                title: '纯碱季节性',
+                icon: 'fa-calendar-alt',
+                color: 'cyan',
+                desc: 'SA 月度涨跌幅热力统计',
+                query: "绘制纯碱期货(SA)的月度季节性走势热力图。",
+                steps: [
+                    { status: 'done', text: '语义解析: 纯碱 -> KQ.m@CZCE.SA' },
+                    { status: 'done', text: 'MCP 调用: tq_get_kline("KQ.m@CZCE.SA", duration=86400, length=1000)' },
+                    { status: 'done', text: 'Python 执行: GroupBy Month 聚合统计...' }
+                ],
+                summary: `**纯碱季节性规律**
+- **强势月份**: 9月 (平均涨幅 +5.2%)、8月 (+2.1%)
+- **弱势月份**: 6月 (-3.2%)、3月 (-2.1%)
+- **规律**: 纯碱呈现明显的“金九银十”特征，建议重点关注 8 月底的季节性做多机会。`,
+                pythonCode: `# 1. Extract Month
+df['month'] = pd.to_datetime(df['datetime']).dt.month
+
+# 2. Group Stats
+monthly_ret = df.groupby('month')['pct_chg'].mean()
+win_rate = df.groupby('month')['is_up'].mean()`,
+                chartConfig: (ctx) => ({
+                    type: 'bar',
+                    data: {
+                        labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
                         datasets: [{
-                            label: '累计净值',
-                            data: [1.0, 1.02, 1.01, 1.04, 1.06, 1.05, 1.08, 1.10, 1.12, 1.09, 1.13, 1.15, 1.16, 1.14, 1.17, 1.18, 1.20, 1.19, 1.18, 1.185],
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.2
+                            label: '月度平均涨幅 (%)',
+                            data: [1.2, -0.5, -2.1, 0.8, 1.5, -3.2, 0.5, 2.1, 5.2, 3.8, 1.1, -0.9],
+                            backgroundColor: (c) => {
+                                const val = c.raw;
+                                return val >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)';
+                            },
+                            borderRadius: 4
                         }]
                     },
                     options: {
-                        plugins: { title: { display: true, text: '策略资金曲线 (Equity Curve)' } },
-                        scales: { y: { beginAtZero: false } }
+                        plugins: { title: { display: true, text: '纯碱期货月度平均涨幅统计 (2020-2024)' } }
                     }
                 })
             }
@@ -543,7 +604,7 @@ df['drawdown'] = df['cum_ret'] / roll_max - 1`,
                                                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                                                     <div className="text-xs text-gray-400 font-mono mb-1">DATA SOURCE</div>
                                                     <div className="text-sm font-semibold flex items-center gap-2">
-                                                        <img src="https://img.icons8.com/color/48/shanghai-futures-exchange.png" className="w-5 h-5 grayscale opacity-70" alt="Exchange"/>
+                                                        <i className="fas fa-database text-gray-400"></i>
                                                         FinSight MCP
                                                     </div>
                                                 </div>
