@@ -148,22 +148,22 @@
 
 ```mermaid
 graph TD
-    User[Web用户] -- "看看螺纹钢" --> Frontend
-    Frontend -- "System Prompt + User Query" --> LLM
+    UserNode["Web用户"] -->|看看螺纹钢| Frontend["Frontend"]
+    Frontend -->|"System Prompt + User Query"| LLM["LLM"]
     
-    subgraph "Step 1: 语义映射 (LLM Thinking)"
-        LLM -- 查表: 螺纹钢=SHFE.rb --> SymbolResolved[确定代码: KQ.m@SHFE.rb]
+    subgraph Step1["Step 1: 语义映射 (LLM Thinking)"]
+        LLM -->|查表: 螺纹钢=SHFE.rb| SymbolResolved["确定代码: KQ.m@SHFE.rb"]
     end
     
-    subgraph "Step 2: 数据获取 (MCP)"
-        SymbolResolved -- Tool Call --> MCP_Server[FinSight MCP (TQSDK)]
-        MCP_Server -- TQSDK API --> FutureMarket[期货交易所]
-        FutureMarket -- Returns CSV --> LLM
+    subgraph Step2["Step 2: 数据获取 (MCP)"]
+        SymbolResolved -->|Tool Call| MCPServer["FinSight MCP (TQSDK)"]
+        MCPServer -->|TQSDK API| FutureMarket["期货交易所"]
+        FutureMarket -->|Returns CSV| LLM
     end
     
-    subgraph "Step 3: 代码执行 (Sandbox)"
-        LLM -- 生成 Python 代码 --> CodeSandbox[Python 容器]
-        CodeSandbox -- 执行并绘图 --> Result[JSON/Image]
+    subgraph Step3["Step 3: 代码执行 (Sandbox)"]
+        LLM -->|生成 Python 代码| CodeSandbox["Python 容器"]
+        CodeSandbox -->|执行并绘图| Result["JSON/Image"]
     end
     
     Result --> Frontend
