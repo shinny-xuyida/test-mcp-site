@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinSight AI - Pro</title>
+    <title>FinSight AI 智能投研终端 (MVP Demo)</title>
     
     <!-- React 全家桶 -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -14,28 +14,33 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <!-- Chart.js (使用 3.x 版本以保证 CDN 兼容性) -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 
     <style>
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8fafc; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; }
+        pre, code { font-family: 'JetBrains Mono', monospace; }
         
         /* 动画定义 */
-        .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .animate-slide-in { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-enter { animation: enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .thinking-dot { animation: thinking 1.4s infinite ease-in-out both; }
+        .thinking-dot:nth-child(1) { animation-delay: -0.32s; }
+        .thinking-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes thinking { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-        /* 滚动条美化 */
+        /* 自定义滚动条 */
         .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+
+        /* Markdown 样式模拟 */
+        .prose p { margin-bottom: 0.75em; }
+        .prose strong { color: #0f172a; font-weight: 600; }
+        .prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.75em; }
     </style>
 </head>
 <body>
@@ -45,494 +50,543 @@
         const { useState, useEffect, useRef } = React;
 
         // ==========================================
-        // 1. 数据配置 (SCENARIOS) - 增强版
+        // 1. 数据剧本 (Scenarios) - 对应 MCP_product.md
         // ==========================================
         const SCENARIOS = {
-            'correlation': {
-                id: 'correlation',
-                title: "RB vs 铁矿 相关性分析",
-                desc: "计算螺纹钢与铁矿石历史价格的相关系数，并绘制价差序列。",
-                query: "获取过去3年螺纹钢(RB)和铁矿石(I)的主力合约收盘价，计算相关性并绘制价差图。",
-                summary: "分析完成。RB 与 I 的相关性系数为 **0.87** (高度正相关)。\n图中蓝色区域为标准化后的价差，当前价差处于历史 **85% 分位**，意味着螺纹钢相对铁矿石价格偏高，可能存在回归需求。",
-                chartConfig: (ctx) => {
-                    const gradientRb = ctx.createLinearGradient(0, 0, 0, 400);
-                    gradientRb.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-                    gradientRb.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+            'spread': {
+                id: 'spread',
+                title: 'RB vs I 黑色系联动',
+                icon: 'fa-link',
+                color: 'blue',
+                desc: '分析螺纹钢与铁矿石的价差回归机会',
+                query: "获取过去3年螺纹钢(RB)和铁矿石(I)的主力合约收盘价，计算它们的相关性系数，并绘制价差序列图。",
+                steps: [
+                    { status: 'done', text: '语义解析: 识别到 "螺纹钢" -> KQ.m@SHFE.rb, "铁矿石" -> KQ.m@DCE.i' },
+                    { status: 'done', text: 'MCP 调用: tq_get_kline(symbol="KQ.m@SHFE.rb", duration=86400)' },
+                    { status: 'done', text: 'MCP 调用: tq_get_kline(symbol="KQ.m@DCE.i", duration=86400)' },
+                    { status: 'done', text: 'Python 执行: 数据清洗与相关性计算...' }
+                ],
+                summary: `分析完成。
+- **相关性**: 螺纹钢与铁矿石的相关系数为 **0.85**，呈现高度正相关。
+- **价差状态**: 当前价差比值处于历史 **90% 分位**，属于高估区间。
+- **建议**: 关注多铁矿、空螺纹的套利机会（回归策略）。`,
+                pythonCode: `# 1. Load Data from MCP Tools
+df_rb = pd.read_csv(io.StringIO(res_rb))
+df_i = pd.read_csv(io.StringIO(res_i))
 
-                    return {
-                        type: 'line',
-                        data: {
-                            labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月'],
-                            datasets: [
-                                {
-                                    label: '螺纹钢 (左轴)',
-                                    data: [3800, 3950, 4100, 4050, 3700, 3650, 3750, 3820, 3900, 3850],
-                                    borderColor: '#3b82f6',
-                                    backgroundColor: gradientRb,
-                                    fill: true,
-                                    yAxisID: 'y',
-                                    tension: 0.4
-                                },
-                                {
-                                    label: '铁矿石 (右轴)',
-                                    data: [820, 850, 880, 860, 750, 720, 780, 810, 840, 830],
-                                    borderColor: '#ef4444',
-                                    backgroundColor: 'transparent',
-                                    borderDash: [5, 5],
-                                    yAxisID: 'y1',
-                                    tension: 0.4
-                                }
-                            ]
-                        },
-                        options: {
-                            interaction: { mode: 'index', intersect: false },
-                            scales: {
-                                y: { type: 'linear', display: true, position: 'left', grid: { display: false } },
-                                y1: { type: 'linear', display: true, position: 'right', grid: { display: false } }
-                            }
-                        }
-                    };
-                },
-                pythonCode: `import pandas as pd\nfrom finsight_mcp import get_kline\n\n# 1. 获取数据\nrb = get_kline('SHFE.rb_main', '2023-01-01', '2023-10-01')\ni = get_kline('DCE.i_main', '2023-01-01', '2023-10-01')\n\n# 2. 合并与计算\ndf = pd.merge(rb, i, on='date')\ncorr = df['close_rb'].corr(df['close_i'])\nprint(f"Correlation: {corr}")\n\n# 3. 绘图逻辑 (略)...`
-            },
-            'backtest': {
-                id: 'backtest',
-                title: "股指期货隔夜策略",
-                desc: "验证‘收盘买入次日开盘卖出’策略在 IF 上的长期表现。",
-                query: "回测 IF 股指期货：每天收盘买入，次日开盘卖出，计算累计收益率。",
-                summary: "回测显示该策略具有**正期望值**。累计收益率 **12.4%**，最大回撤 **-3.2%**。\n曲线呈阶梯状上升，表明隔夜风险溢价在 A 股市场长期存在。",
-                chartConfig: (ctx) => {
-                    const gradientRet = ctx.createLinearGradient(0, 0, 0, 400);
-                    gradientRet.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
-                    gradientRet.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-                    return {
-                        type: 'line',
-                        data: {
-                            labels: Array.from({length: 20}, (_, i) => `Day ${i*5}`),
-                            datasets: [{
-                                label: '累计净值',
-                                data: [1.0, 1.01, 1.005, 1.02, 1.03, 1.025, 1.04, 1.05, 1.06, 1.055, 1.07, 1.08, 1.09, 1.085, 1.10, 1.11, 1.12, 1.115, 1.13, 1.124],
-                                borderColor: '#10b981',
-                                backgroundColor: gradientRet,
-                                fill: true,
-                                tension: 0.3,
-                                pointRadius: 2
-                            }]
-                        },
-                        options: {
-                            plugins: { legend: { display: false }, title: { display: true, text: '策略累计净值曲线' } }
-                        }
-                    };
-                },
-                pythonCode: `df['ret_overnight'] = df['open'].shift(-1) / df['close'] - 1\ndf['cum_nav'] = (1 + df['ret_overnight']).cumprod()`
-            },
-            'ma_strategy': {
-                id: 'ma_strategy',
-                title: "均线支撑有效性",
-                desc: "统计过去一年回踩 20日均线不破的成功率。",
-                query: "分析螺纹钢主力合约，统计回踩 MA20 且未跌破的次数及后续涨幅。",
-                summary: "识别到 **8次** 有效支撑。其中 6 次后续 3 天内上涨，胜率 **75%**。\n黄色点代表回踩信号，绿色线为 MA20 趋势线。",
+# 2. Merge Data
+df = pd.merge(df_rb, df_i, on='datetime', suffixes=('_rb', '_i'))
+
+# 3. Calculate Spread & Correlation
+correlation = df['close_rb'].corr(df['close_i'])
+df['spread'] = df['close_rb'] - df['close_i'] * 1.6 # 假设比率
+df['z_score'] = (df['spread'] - df['spread'].mean()) / df['spread'].std()
+
+# 4. Plotting (handled by frontend engine)`,
                 chartConfig: (ctx) => ({
                     type: 'line',
                     data: {
-                        labels: ['T-40', 'T-35', 'T-30', 'T-25', 'T-20', 'T-15', 'T-10', 'T-5', 'Now'],
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
                         datasets: [
                             {
-                                label: '收盘价',
-                                data: [3600, 3650, 3620, 3680, 3750, 3720, 3800, 3850, 3820],
-                                borderColor: '#94a3b8',
+                                label: '价差 Z-Score',
+                                data: [0.5, 0.8, 1.2, 1.5, 0.2, -0.5, -1.2, -0.8, 1.8, 2.1],
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: '上轨 (+2std)',
+                                data: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+                                borderColor: '#ef4444',
+                                borderDash: [5, 5],
                                 borderWidth: 1,
                                 pointRadius: 0
                             },
                             {
-                                label: 'MA20',
-                                data: [3580, 3600, 3610, 3640, 3680, 3710, 3750, 3780, 3800],
-                                borderColor: '#f59e0b', // Amber
-                                borderWidth: 2,
+                                label: '下轨 (-2std)',
+                                data: [-2, -2, -2, -2, -2, -2, -2, -2, -2, -2],
+                                borderColor: '#10b981',
+                                borderDash: [5, 5],
+                                borderWidth: 1,
                                 pointRadius: 0
-                            },
-                            {
-                                label: '回踩信号',
-                                type: 'scatter',
-                                data: [
-                                    {x: 'T-30', y: 3620},
-                                    {x: 'T-15', y: 3720}
-                                ],
-                                backgroundColor: '#ef4444',
-                                pointRadius: 6,
-                                pointHoverRadius: 8
                             }
                         ]
+                    },
+                    options: {
+                        plugins: { 
+                            title: { display: true, text: 'RB/I 价差标准分序列 (Z-Score)' },
+                            legend: { position: 'bottom' }
+                        },
+                        scales: { y: { grid: { borderDash: [2, 2] } } }
                     }
-                }),
-                pythonCode: `df['ma20'] = df['close'].rolling(20).mean()\n# 判定条件：Low < MA20 * 1.005 and Close > MA20\nsignals = df[(df['low'] <= df['ma20']*1.005) & (df['close'] > df['ma20'])]`
+                })
             },
-            'seasonality': {
-                id: 'seasonality',
-                title: "纯碱季节性分析",
-                desc: "对比过去3年纯碱(SA)在不同月份的平均涨跌幅。",
-                query: "绘制纯碱期货的月度季节性走势图。",
-                summary: "纯碱呈现明显的**“金九银十”**特征。\n9月平均涨幅最大 (+5.2%)，而 6月 通常为淡季回调期。建议关注 8 月底的做多机会。",
+            'arbitrage': {
+                id: 'arbitrage',
+                title: '玻璃跨期套利',
+                icon: 'fa-scale-balanced',
+                color: 'purple',
+                desc: 'FG2501 vs FG2505 价差分布统计',
+                query: "获取玻璃期货主力(2501)与次主力(2505)的价差数据，统计价差分布直方图。",
+                steps: [
+                    { status: 'done', text: '语义解析: 玻璃 -> CZCE.FG; 2501 -> CZCE.FG501, 2505 -> CZCE.FG505' },
+                    { status: 'done', text: 'MCP 调用: tq_get_quote("CZCE.FG501") // 获取乘数' },
+                    { status: 'done', text: 'MCP 调用: tq_get_kline("CZCE.FG501", ...)' },
+                    { status: 'done', text: 'MCP 调用: tq_get_kline("CZCE.FG505", ...)' }
+                ],
+                summary: `**玻璃跨期价差分布报告**
+- **均值**: 125 元/吨
+- **标准差**: 45 元
+- **当前状态**: 价差 **80** 元，位于 -1 标准差附近，属于偏低区域。
+- **历史概率**: 历史上价差低于 80 元的概率仅为 **15%**。`,
+                pythonCode: `# 1. Calculate Spread
+df['spread'] = df['close_01'] - df['close_05']
+
+# 2. Stats
+mean_val = df['spread'].mean()
+std_val = df['spread'].std()
+
+# 3. Distribution Analysis
+hist_data = np.histogram(df['spread'], bins=20)`,
                 chartConfig: (ctx) => ({
                     type: 'bar',
                     data: {
-                        labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                        labels: ['<0', '0-50', '50-100', '100-150', '150-200', '200-250', '>250'],
                         datasets: [{
-                            label: '月度平均涨幅 (%)',
-                            data: [1.2, -0.5, -2.1, 0.8, 1.5, -3.2, 0.5, 2.1, 5.2, 3.8, 1.1, -0.9],
-                            backgroundColor: (ctx) => {
-                                const val = ctx.raw;
-                                return val >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)';
+                            label: '频数分布',
+                            data: [5, 15, 45, 80, 50, 20, 5],
+                            backgroundColor: (c) => {
+                                const idx = c.dataIndex;
+                                return idx === 2 ? '#ec4899' : 'rgba(147, 51, 234, 0.5)'; // Highlight current
                             },
                             borderRadius: 4
                         }]
                     },
                     options: {
-                        plugins: { legend: { display: false } }
+                        plugins: {
+                            title: { display: true, text: 'FG01-05 价差正态分布' },
+                            annotation: {
+                                annotations: {
+                                    line1: { type: 'line', xMin: 2, xMax: 2, borderColor: 'red', borderWidth: 2, label: { content: '当前价差', enabled: true } }
+                                }
+                            }
+                        }
                     }
-                }),
-                pythonCode: `df['month'] = df['date'].dt.month\nmonthly_ret = df.groupby('month')['pct_chg'].mean()`
+                })
+            },
+            'backtest': {
+                id: 'backtest',
+                title: '股指隔夜策略',
+                icon: 'fa-chart-line',
+                color: 'emerald',
+                desc: 'IF 收盘买入/开盘卖出 策略回测',
+                query: "获取IF（沪深300）股指期货过去5年的日线数据。假设策略为：每天收盘价买入，次日开盘价卖出。请计算累计收益率曲线。",
+                steps: [
+                    { status: 'done', text: '语义解析: IF/沪深300 -> KQ.m@CFFEX.IF' },
+                    { status: 'done', text: 'MCP 调用: tq_get_kline("KQ.m@CFFEX.IF", duration=86400, length=1200)' },
+                    { status: 'done', text: 'Python 执行: 向量化回测计算...' }
+                ],
+                summary: `**回测结果：IF 隔夜持仓策略**
+- **总收益率**: +18.5% (年化 3.7%)
+- **夏普比率**: 0.45
+- **最大回撤**: -5.2%
+- **结论**: 隔夜持仓具有正期望值，但波动较大。A股市场存在显著的“隔夜风险溢价”。`,
+                pythonCode: `# 1. Vectorized Backtest
+df['ret_overnight'] = df['open'].shift(-1) / df['close'] - 1
+df['cum_ret'] = (1 + df['ret_overnight']).cumprod()
+
+# 2. Max Drawdown
+roll_max = df['cum_ret'].cummax()
+df['drawdown'] = df['cum_ret'] / roll_max - 1`,
+                chartConfig: (ctx) => ({
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: 20}, (_, i) => `202${i%5}-Q${i%4+1}`),
+                        datasets: [{
+                            label: '累计净值',
+                            data: [1.0, 1.02, 1.01, 1.04, 1.06, 1.05, 1.08, 1.10, 1.12, 1.09, 1.13, 1.15, 1.16, 1.14, 1.17, 1.18, 1.20, 1.19, 1.18, 1.185],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.2
+                        }]
+                    },
+                    options: {
+                        plugins: { title: { display: true, text: '策略资金曲线 (Equity Curve)' } },
+                        scales: { y: { beginAtZero: false } }
+                    }
+                })
             }
         };
 
         // ==========================================
-        // 2. 独立组件：图表渲染器 (Canvas Wrapper)
+        // 2. 组件：代码/JSON 查看器
         // ==========================================
-        const ChartView = ({ scenario }) => {
-            const canvasRef = useRef(null);
-            const chartInstanceRef = useRef(null);
-
-            useEffect(() => {
-                if (!canvasRef.current || !scenario) return;
-
-                // 销毁旧图表
-                if (chartInstanceRef.current) {
-                    chartInstanceRef.current.destroy();
-                }
-
-                // 获取 Canvas Context
-                const ctx = canvasRef.current.getContext('2d');
-                
-                // 获取配置 (支持函数式配置以使用 Context 创建渐变)
-                const config = typeof scenario.chartConfig === 'function' 
-                    ? scenario.chartConfig(ctx) 
-                    : scenario.chartConfig;
-
-                // 创建新图表
-                chartInstanceRef.current = new Chart(ctx, {
-                    ...config,
-                    options: {
-                        ...config.options,
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: { duration: 1000, easing: 'easeOutQuart' },
-                        plugins: {
-                            ...config.options?.plugins,
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                titleColor: '#1e293b',
-                                bodyColor: '#475569',
-                                borderColor: '#e2e8f0',
-                                borderWidth: 1,
-                                padding: 10
-                            }
-                        }
-                    }
-                });
-
-                return () => {
-                    if (chartInstanceRef.current) chartInstanceRef.current.destroy();
-                };
-            }, [scenario]);
-
-            return <canvas ref={canvasRef} />;
-        };
-
-        // ==========================================
-        // 3. 独立组件：灵感卡片
-        // ==========================================
-        const InspirationCard = ({ icon, title, desc, onClick, color }) => (
-            <div 
-                onClick={onClick}
-                className="group relative bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
-            >
-                <div className={`absolute top-0 right-0 w-16 h-16 bg-${color}-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110`}></div>
-                <div className="relative z-10">
-                    <div className={`w-12 h-12 rounded-xl bg-${color}-100 text-${color}-600 flex items-center justify-center mb-4 text-xl shadow-inner`}>
-                        <i className={`fas ${icon}`}></i>
-                    </div>
-                    <h3 className="font-bold text-gray-800 text-lg mb-2 group-hover:text-blue-600 transition-colors">{title}</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+        const CodeBlock = ({ code, language = 'python' }) => (
+            <div className="bg-[#1e293b] rounded-lg overflow-hidden border border-gray-700 font-mono text-xs">
+                <div className="flex items-center justify-between px-3 py-2 bg-[#0f172a] border-b border-gray-700">
+                    <span className="text-gray-400">{language}</span>
+                    <button className="text-gray-500 hover:text-white transition-colors"><i className="far fa-copy"></i></button>
+                </div>
+                <div className="p-3 overflow-x-auto text-gray-300 whitespace-pre">
+                    {code}
                 </div>
             </div>
         );
 
         // ==========================================
-        // 4. 主程序 App
+        // 3. 组件：思考过程展示 (Thinking Process)
+        // ==========================================
+        const ThinkingProcess = ({ steps, isComplete }) => {
+            const [expanded, setExpanded] = useState(true);
+            
+            return (
+                <div className="mb-4 border border-blue-100 bg-blue-50/50 rounded-xl overflow-hidden">
+                    <div 
+                        className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-blue-100/50 transition-colors"
+                        onClick={() => setExpanded(!expanded)}
+                    >
+                        <div className="flex items-center gap-2 text-sm text-blue-700 font-medium">
+                            {isComplete ? <i className="fas fa-check-circle text-green-500"></i> : <i className="fas fa-circle-notch fa-spin"></i>}
+                            <span>{isComplete ? '已完成处理' : 'AI 正在思考...'}</span>
+                        </div>
+                        <i className={`fas fa-chevron-down text-blue-400 transition-transform ${expanded ? 'rotate-180' : ''}`}></i>
+                    </div>
+                    
+                    {expanded && (
+                        <div className="px-4 py-3 bg-white space-y-3">
+                            {steps.map((step, idx) => (
+                                <div key={idx} className="flex gap-3 text-xs animate-enter" style={{animationDelay: `${idx * 0.1}s`}}>
+                                    <div className="flex flex-col items-center">
+                                        <div className={`w-2 h-2 rounded-full mt-1.5 ${step.status === 'done' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                        {idx !== steps.length - 1 && <div className="w-px h-full bg-gray-200 my-0.5"></div>}
+                                    </div>
+                                    <div className={`${step.status === 'done' ? 'text-gray-700' : 'text-gray-400'}`}>
+                                        <span className="font-bold mr-1">[{step.text.split(':')[0]}]</span>
+                                        <span className="font-mono bg-gray-50 px-1 rounded text-gray-500">{step.text.split(':')[1]}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {!isComplete && (
+                                <div className="flex gap-3 text-xs opacity-50">
+                                    <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse mt-1.5 ml-0"></div>
+                                    <span className="text-gray-500 italic">Processing next step...</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 4. 组件：图表 Canvas
+        // ==========================================
+        const ChartView = ({ config }) => {
+            const canvasRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (!canvasRef.current || !config) return;
+                
+                if (chartInstance.current) chartInstance.current.destroy();
+
+                const ctx = canvasRef.current.getContext('2d');
+                const finalConfig = typeof config === 'function' ? config(ctx) : config;
+
+                chartInstance.current = new Chart(ctx, {
+                    ...finalConfig,
+                    options: {
+                        ...finalConfig.options,
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                    }
+                });
+
+                return () => chartInstance.current?.destroy();
+            }, [config]);
+
+            return <canvas ref={canvasRef} />;
+        };
+
+        // ==========================================
+        // 5. 主应用 (FinSight Terminal)
         // ==========================================
         const App = () => {
-            const initialMsg = [{ role: 'ai', content: '你好！我是 FinSight。请从下方选择一个分析场景，或直接输入你的想法。' }];
-            const [messages, setMessages] = useState(initialMsg);
-            const [currentScenario, setCurrentScenario] = useState(null);
-            const [viewMode, setViewMode] = useState('chart'); 
-            const [isThinking, setIsThinking] = useState(false);
-            const [showDashboard, setShowDashboard] = useState(false);
+            const [input, setInput] = useState('');
+            const [chatHistory, setChatHistory] = useState([]); // { role, content, steps?, scenario? }
+            const [currentArtifact, setCurrentArtifact] = useState(null); // The right side content
+            const [isTyping, setIsTyping] = useState(false);
+            const [activeTab, setActiveTab] = useState('chart'); // chart | data | code
 
-            // 回到首页 (核心交互增强)
-            const goHome = () => {
-                setShowDashboard(false);
-                setTimeout(() => {
-                    setMessages(initialMsg);
-                    setCurrentScenario(null);
-                    setIsThinking(false);
-                    setViewMode('chart');
-                }, 300); // 等待 dashboard 动画消失
-            };
+            const chatEndRef = useRef(null);
+            
+            useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [chatHistory, isTyping]);
 
-            // 模拟执行流程
-            const runScenario = (key) => {
-                const sc = SCENARIOS[key];
+            const handleSend = async (text = input) => {
+                if (!text.trim()) return;
                 
-                // 1. 用户提问
-                setMessages(prev => [...prev, { role: 'user', content: sc.query }]);
-                setIsThinking(true);
+                // 1. User Message
+                const userMsg = { role: 'user', content: text };
+                setChatHistory(prev => [...prev, userMsg]);
+                setInput('');
+                setIsTyping(true);
 
-                // 2. 模拟链式反应
-                setTimeout(() => setMessages(prev => [...prev, { role: 'ai', type: 'loading' }]), 400);
+                // 2. Find matching scenario (Mock AI Router)
+                const scenarioKey = Object.keys(SCENARIOS).find(k => SCENARIOS[k].query.includes(text.substring(0, 5))) || 'spread';
+                const scenario = SCENARIOS[scenarioKey];
 
-                setTimeout(() => {
-                    // 替换 loading 为过程日志
-                    setMessages(prev => {
-                        const next = [...prev];
-                        next.pop();
-                        next.push({ role: 'ai', type: 'log', content: `正在获取 ${sc.title.split(' ')[0]} 历史数据 (MCP)...` });
-                        return next;
+                // 3. Simulate Thinking Steps
+                let currentSteps = [];
+                const addStep = (step) => {
+                    currentSteps = [...currentSteps, step];
+                    // Create a temporary AI message to show progress
+                    setChatHistory(prev => {
+                        const newHistory = [...prev];
+                        if (newHistory[newHistory.length - 1].role === 'ai' && newHistory[newHistory.length - 1].isProgress) {
+                            newHistory[newHistory.length - 1] = { role: 'ai', isProgress: true, steps: currentSteps };
+                        } else {
+                            newHistory.push({ role: 'ai', isProgress: true, steps: currentSteps });
+                        }
+                        return newHistory;
                     });
-                }, 1500);
+                };
 
-                setTimeout(() => {
-                    setMessages(prev => {
-                        const next = [...prev];
-                        next.push({ role: 'ai', type: 'log', content: `正在执行 Python 回测脚本...` });
-                        return next;
-                    });
-                }, 2500);
+                // Sequence simulation
+                await new Promise(r => setTimeout(r, 800));
+                addStep(scenario.steps[0]); // Semantic
+                
+                await new Promise(r => setTimeout(r, 1200));
+                addStep(scenario.steps[1]); // MCP Call 1
+                
+                if (scenario.steps[2]) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    addStep(scenario.steps[2]); // MCP Call 2
+                }
+                
+                await new Promise(r => setTimeout(r, 1500));
+                addStep(scenario.steps[scenario.steps.length - 1]); // Python Exec
 
-                setTimeout(() => {
-                    setMessages(prev => {
-                        const next = [...prev];
-                        next.push({ role: 'ai', content: sc.summary });
-                        return next;
-                    });
-                    setCurrentScenario(sc);
-                    setShowDashboard(true);
-                    setIsThinking(false);
-                }, 3500);
+                // 4. Final Result
+                await new Promise(r => setTimeout(r, 500));
+                setChatHistory(prev => {
+                    const final = prev.filter(m => !m.isProgress); // Remove progress msg
+                    return [...final, { 
+                        role: 'ai', 
+                        content: scenario.summary, 
+                        steps: scenario.steps,
+                        scenarioId: scenario.id 
+                    }];
+                });
+                
+                setCurrentArtifact(scenario);
+                setIsTyping(false);
             };
 
             return (
-                <div className="flex h-screen w-full overflow-hidden bg-slate-50">
+                <div className="flex h-screen w-full overflow-hidden">
                     
-                    {/* 左侧边栏 (导航 + 历史) */}
-                    <aside className="w-20 md:w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 z-20">
-                        {/* LOGO区域 - 点击回家 */}
-                        <div 
-                            onClick={goHome}
-                            className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors group"
-                            title="点击回到首页"
-                        >
-                            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform">
-                                <i className="fas fa-chart-simple"></i>
-                            </div>
-                            <span className="hidden md:block ml-3 font-bold text-gray-800 text-lg">FinSight</span>
-                        </div>
-
-                        {/* 导航菜单 */}
-                        <div className="flex-1 py-6 flex flex-col gap-2 px-3">
-                            <div className="hidden md:block text-xs font-semibold text-gray-400 px-3 mb-2">最近分析</div>
-                            {Object.values(SCENARIOS).map((sc, idx) => (
-                                <div key={sc.id} onClick={() => runScenario(sc.id)} 
-                                     className={`flex items-center p-3 rounded-xl cursor-pointer transition-all ${currentScenario?.id === sc.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-600'}`}>
-                                    <div className="w-6 text-center"><i className={`fas fa-${idx === 0 ? 'link' : idx === 1 ? 'chart-line' : idx === 2 ? 'crosshairs' : 'calendar-alt'}`}></i></div>
-                                    <span className="hidden md:block ml-2 text-sm truncate">{sc.title}</span>
+                    {/* LEFT: Chat Area */}
+                    <div className="flex flex-col w-full md:w-[450px] bg-white border-r border-gray-200 z-10 shadow-xl">
+                        {/* Header */}
+                        <div className="h-14 border-b border-gray-100 flex items-center px-4 justify-between bg-white flex-shrink-0">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                                    <i className="fas fa-layer-group"></i>
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* 底部用户 */}
-                        <div className="p-4 border-t border-gray-100">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500"></div>
-                                <div className="hidden md:block">
-                                    <div className="text-sm font-medium text-gray-700">User Pro</div>
-                                    <div className="text-xs text-gray-400">API Connected</div>
-                                </div>
+                                <span className="font-bold text-gray-800">FinSight AI</span>
                             </div>
+                            <button onClick={() => {setChatHistory([]); setCurrentArtifact(null);}} className="text-gray-400 hover:text-gray-600" title="New Chat">
+                                <i className="fas fa-plus"></i>
+                            </button>
                         </div>
-                    </aside>
 
-                    {/* 主区域 */}
-                    <main className="flex-1 flex relative">
-                        
-                        {/* 中间对话区 */}
-                        <div className="flex-1 flex flex-col min-w-0 bg-slate-50/50">
-                            {/* 聊天记录 */}
-                            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scroll">
-                                <div className="max-w-3xl mx-auto space-y-6 pb-20">
-                                    {messages.map((msg, idx) => (
-                                        <div key={idx} className={`flex w-full ${msg.role === 'ai' ? 'justify-start' : 'justify-end'} animate-fade-in`}>
-                                            <div className={`flex max-w-[90%] md:max-w-[80%] gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                                {/* 头像 */}
-                                                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${msg.role === 'ai' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'}`}>
-                                                    <i className={`fas fa-${msg.role === 'ai' ? 'robot' : 'user'}`}></i>
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto custom-scroll p-4 bg-gray-50/30">
+                            {chatHistory.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-0 animate-enter" style={{animationDelay: '0.2s'}}>
+                                    <div className="mb-8">
+                                        <h1 className="text-2xl font-bold text-gray-800 mb-2">有什么交易想法？</h1>
+                                        <p className="text-sm text-gray-500">FinSight 帮你用历史数据验证每一个直觉。</p>
+                                    </div>
+                                    <div className="grid gap-3 w-full">
+                                        {Object.values(SCENARIOS).map(sc => (
+                                            <button 
+                                                key={sc.id}
+                                                onClick={() => handleSend(sc.query)}
+                                                className="group text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all flex items-start gap-3"
+                                            >
+                                                <div className={`w-8 h-8 rounded-full bg-${sc.color}-100 text-${sc.color}-600 flex items-center justify-center flex-shrink-0`}>
+                                                    <i className={`fas ${sc.icon}`}></i>
                                                 </div>
+                                                <div>
+                                                    <div className="font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{sc.title}</div>
+                                                    <div className="text-xs text-gray-400 mt-1 line-clamp-2">{sc.desc}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {chatHistory.map((msg, idx) => (
+                                        <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} animate-enter`}>
+                                            <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${msg.role === 'ai' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                                <i className={`fas fa-${msg.role === 'ai' ? 'robot' : 'user'}`}></i>
+                                            </div>
+                                            <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                                {/* Thinking Process for AI */}
+                                                {msg.role === 'ai' && (msg.steps || msg.isProgress) && (
+                                                    <div className="w-full">
+                                                        <ThinkingProcess steps={msg.steps || []} isComplete={!msg.isProgress} />
+                                                    </div>
+                                                )}
                                                 
-                                                {/* 气泡内容 */}
-                                                <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                                                    msg.role === 'ai' 
-                                                    ? 'bg-white border border-gray-100 text-gray-800 rounded-tl-none' 
-                                                    : 'bg-blue-600 text-white rounded-tr-none'
-                                                }`}>
-                                                    {msg.type === 'loading' ? (
-                                                        <div className="flex gap-1 py-1 px-1">
-                                                            <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                                                            <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                                                            <div className="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                                                        </div>
-                                                    ) : msg.type === 'log' ? (
-                                                        <div className="flex items-center gap-2 text-blue-600">
-                                                            <i className="fas fa-circle-notch fa-spin text-xs"></i>
-                                                            <span>{msg.content}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') }} />
-                                                    )}
-                                                </div>
+                                                {/* Message Content */}
+                                                {!msg.isProgress && (
+                                                    <div className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                                                        msg.role === 'ai' 
+                                                        ? 'bg-white border border-gray-100 text-gray-800 rounded-tl-none prose' 
+                                                        : 'bg-blue-600 text-white rounded-tr-none'
+                                                    }`}>
+                                                        <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                                                    </div>
+                                                )}
+
+                                                {/* Artifact Link Button (if scenario attached) */}
+                                                {msg.scenarioId && (
+                                                    <button 
+                                                        onClick={() => setCurrentArtifact(SCENARIOS[msg.scenarioId])}
+                                                        className="mt-2 text-xs flex items-center gap-1.5 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors"
+                                                    >
+                                                        <i className="fas fa-chart-simple"></i> 查看分析详情
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-
-                            {/* 底部输入框 */}
-                            <div className="p-4 md:p-6 bg-white/80 backdrop-blur border-t border-gray-200 z-10">
-                                <div className="max-w-3xl mx-auto relative group">
-                                    <input 
-                                        type="text" 
-                                        disabled={isThinking}
-                                        placeholder="输入你的交易想法，例如：'螺纹钢季节性分析'..." 
-                                        className="w-full pl-5 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all shadow-sm"
-                                    />
-                                    <button className="absolute right-3 top-3 w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center hover:bg-blue-700 shadow-md shadow-blue-200 transition-transform active:scale-95">
-                                        <i className="fas fa-paper-plane"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* 灵感墙 Overlay (仅在初始状态显示) */}
-                            {!showDashboard && !isThinking && messages.length <= 1 && (
-                                <div className="absolute inset-0 bg-slate-50 z-0 flex flex-col items-center justify-center p-6 animate-fade-in">
-                                    <div className="text-center mb-10">
-                                        <div className="inline-block p-2 bg-blue-50 text-blue-600 rounded-lg mb-4 text-xs font-bold tracking-wider uppercase">AI Powered Quantitative Analysis</div>
-                                        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-4">你的想法，数据的答案。</h1>
-                                        <p className="text-gray-500 max-w-lg mx-auto">无需编程，FinSight 帮你用历史数据验证每一个交易直觉。</p>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl w-full">
-                                        <InspirationCard 
-                                            icon="fa-link" title="RB vs I 相关性" color="blue"
-                                            desc="黑色系品种联动分析，寻找价差回归机会。"
-                                            onClick={() => runScenario('correlation')}
-                                        />
-                                        <InspirationCard 
-                                            icon="fa-chart-area" title="股指隔夜回测" color="purple"
-                                            desc="实证 A 股是否存在显著的隔夜持仓溢价。"
-                                            onClick={() => runScenario('backtest')}
-                                        />
-                                        <InspirationCard 
-                                            icon="fa-crosshairs" title="均线支撑验证" color="amber"
-                                            desc="统计回踩 20日均线不破的胜率与盈亏比。"
-                                            onClick={() => runScenario('ma_strategy')}
-                                        />
-                                        <InspirationCard 
-                                            icon="fa-calendar-alt" title="纯碱季节性" color="emerald"
-                                            desc="月度涨跌幅热力统计，发现金九银十规律。"
-                                            onClick={() => runScenario('seasonality')}
-                                        />
-                                    </div>
+                                    {isTyping && !chatHistory[chatHistory.length - 1]?.isProgress && (
+                                        <div className="flex gap-1 ml-11 py-2">
+                                            <div className="w-2 h-2 bg-gray-300 rounded-full thinking-dot"></div>
+                                            <div className="w-2 h-2 bg-gray-300 rounded-full thinking-dot"></div>
+                                            <div className="w-2 h-2 bg-gray-300 rounded-full thinking-dot"></div>
+                                        </div>
+                                    )}
+                                    <div ref={chatEndRef} />
                                 </div>
                             )}
                         </div>
 
-                        {/* 右侧：结果仪表盘 (Slide-over Dashboard) */}
-                        {showDashboard && currentScenario && (
-                            <div className="absolute md:relative inset-0 md:inset-auto md:w-[500px] bg-white border-l border-gray-200 shadow-2xl z-30 flex flex-col animate-slide-in">
-                                {/* 顶部工具栏 */}
-                                <div className="h-16 border-b border-gray-100 flex items-center justify-between px-5 bg-white flex-shrink-0">
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-green-500 animate-pulse"><i className="fas fa-circle text-[8px]"></i></div>
-                                        <h3 className="font-bold text-gray-800">分析结果</h3>
-                                    </div>
+                        {/* Input Area */}
+                        <div className="p-4 border-t border-gray-100 bg-white">
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                                    placeholder="输入指令..."
+                                    className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                    disabled={isTyping}
+                                />
+                                <button 
+                                    onClick={() => handleSend()}
+                                    disabled={!input.trim() || isTyping}
+                                    className="absolute right-2 top-2 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <i className="fas fa-arrow-up text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RIGHT: Artifact Area (Canvas) */}
+                    <main className="flex-1 bg-gray-50 flex flex-col relative overflow-hidden">
+                        {currentArtifact ? (
+                            <div className="absolute inset-0 flex flex-col animate-enter">
+                                {/* Toolbar */}
+                                <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
+                                    <h2 className="font-bold text-gray-700 truncate max-w-md flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full bg-${currentArtifact.color}-500`}></div>
+                                        {currentArtifact.title}
+                                    </h2>
                                     <div className="flex bg-gray-100 p-1 rounded-lg">
-                                        <button onClick={() => setViewMode('chart')} className={`px-3 py-1.5 text-xs rounded-md font-medium transition-all ${viewMode === 'chart' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>
-                                            图表
-                                        </button>
-                                        <button onClick={() => setViewMode('code')} className={`px-3 py-1.5 text-xs rounded-md font-medium transition-all ${viewMode === 'code' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>
-                                            Python
-                                        </button>
+                                        {['chart', 'code'].map(tab => (
+                                            <button
+                                                key={tab}
+                                                onClick={() => setActiveTab(tab)}
+                                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
+                                                    activeTab === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                            >
+                                                {tab === 'chart' ? '可视化图表' : 'Python 代码'}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
-                                {/* 内容滚动区 */}
-                                <div className="flex-1 overflow-y-auto custom-scroll bg-gray-50/50 p-5">
-                                    {viewMode === 'chart' ? (
-                                        <div className="space-y-5 animate-fade-in">
-                                            {/* 图表卡片 */}
-                                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 h-80 relative">
-                                                <ChartView scenario={currentScenario} />
+                                {/* Content */}
+                                <div className="flex-1 overflow-y-auto p-6 custom-scroll">
+                                    {activeTab === 'chart' ? (
+                                        <div className="h-full flex flex-col gap-6">
+                                            {/* Chart Container */}
+                                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 h-[400px] flex-shrink-0">
+                                                <ChartView config={currentArtifact.chartConfig} />
+                                            </div>
+                                            
+                                            {/* Metrics Cards */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                                    <div className="text-xs text-gray-400 font-mono mb-1">DATA SOURCE</div>
+                                                    <div className="text-sm font-semibold flex items-center gap-2">
+                                                        <img src="https://img.icons8.com/color/48/shanghai-futures-exchange.png" className="w-5 h-5 grayscale opacity-70" alt="Exchange"/>
+                                                        FinSight MCP
+                                                    </div>
+                                                </div>
+                                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                                    <div className="text-xs text-gray-400 font-mono mb-1">EXECUTION TIME</div>
+                                                    <div className="text-sm font-semibold">1.24s</div>
+                                                </div>
+                                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                                    <div className="text-xs text-gray-400 font-mono mb-1">MODEL</div>
+                                                    <div className="text-sm font-semibold text-green-600">
+                                                        <i className="fas fa-check-circle mr-1"></i>
+                                                        Auto-Verified
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            {/* AI 结论 */}
-                                            <div className="bg-indigo-50/50 border border-indigo-100 p-5 rounded-2xl">
-                                                <div className="flex items-center gap-2 mb-3 text-indigo-700 font-bold text-sm">
-                                                    <i className="fas fa-robot"></i> 智能洞察
-                                                </div>
-                                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                                    {currentScenario.summary.replace(/\*\*/g, '')}
-                                                </p>
-                                            </div>
-
-                                            {/* 关键指标 Grid */}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                                    <div className="text-xs text-gray-400 mb-1 uppercase tracking-wider">数据完整度</div>
-                                                    <div className="text-lg font-bold text-gray-800">99.8%</div>
-                                                </div>
-                                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                                    <div className="text-xs text-gray-400 mb-1 uppercase tracking-wider">耗时</div>
-                                                    <div className="text-lg font-bold text-gray-800">1.2s</div>
-                                                </div>
+                                            {/* Detailed Summary */}
+                                            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5">
+                                                <h4 className="text-indigo-900 font-bold mb-2 flex items-center gap-2">
+                                                    <i className="fas fa-lightbulb text-yellow-500"></i>
+                                                    深度洞察
+                                                </h4>
+                                                <div className="prose prose-sm max-w-none text-indigo-900/80" dangerouslySetInnerHTML={{ __html: currentArtifact.summary.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></div>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="animate-fade-in h-full flex flex-col">
-                                            <div className="bg-[#1e293b] rounded-xl overflow-hidden shadow-lg border border-gray-700 flex-1 flex flex-col">
-                                                <div className="bg-[#0f172a] px-4 py-2 flex items-center justify-between border-b border-gray-700">
-                                                    <span className="text-xs text-gray-400 font-mono">analysis_script.py</span>
-                                                    <span className="text-xs text-green-500"><i className="fas fa-check mr-1"></i>Verified</span>
+                                        <div className="h-full">
+                                            <CodeBlock code={currentArtifact.pythonCode} />
+                                            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-xs text-yellow-800 flex gap-3">
+                                                <i className="fas fa-exclamation-triangle mt-0.5"></i>
+                                                <div>
+                                                    <p className="font-bold mb-1">免责声明</p>
+                                                    <p>此代码由 AI 生成并在沙箱环境中执行。过往业绩不代表未来收益，请务必核对逻辑后再用于实盘交易。</p>
                                                 </div>
-                                                <pre className="p-4 text-xs font-mono text-gray-300 overflow-x-auto custom-scroll flex-1">
-                                                    {currentScenario.pythonCode}
-                                                </pre>
                                             </div>
-                                            <button className="mt-4 w-full py-3 bg-white border border-gray-300 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
-                                                <i className="fas fa-copy mr-2"></i> 复制代码到剪贴板
-                                            </button>
                                         </div>
                                     )}
                                 </div>
+                            </div>
+                        ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300">
+                                <i className="fas fa-chart-pie text-6xl mb-4 opacity-50"></i>
+                                <p className="text-lg font-medium">在左侧开始对话以生成分析</p>
                             </div>
                         )}
                     </main>
